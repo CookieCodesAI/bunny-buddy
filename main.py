@@ -3,16 +3,30 @@ from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, QPropertyAnimation, QPoint, QElapsedTimer, QTimer
 import sys
 import random
+from enum import Enum
 
+class Bunny():
+    RUNNING = 1
+    IDLE = 2
+    LIE_DOWN = 3
+    SLEEPING = 4
+    HOVER = 5
 class Window(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.state = Bunny.RUNNING
 
         self.hoverTime = QElapsedTimer()
         self.hovering=False
         self.checkTimer = QTimer(self)
         self.checkTimer.setInterval(100)
         self.checkTimer.timeout.connect(self.checkSleeping)
+
+        self.idleTimer = QTimer(self)
+        self.idleTimer.setSingleShot(True)
+        self.idleTimer.timeout.connect(self.run)
+
 
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
@@ -44,6 +58,7 @@ class Window(QWidget):
         self.run()
 
     def enterEvent(self, event):
+        self.state = Bunny.LIE_DOWN
         self.hoverTime.start()
         self.hovering = True
         self.show_bunny(self.bunny_liedown)
@@ -51,6 +66,7 @@ class Window(QWidget):
         self.checkTimer.start()
         
     def leaveEvent(self, event):
+        self.state = Bunny.RUNNING
         self.hovering = False
         self.checkTimer.stop()
         self.run()
@@ -59,6 +75,7 @@ class Window(QWidget):
         if not self.hovering:
             return
         if self.hoverTime.elapsed() > 5000:
+            self.state = Bunny.SLEEPING
             self.show_bunny(self.bunny_sleep)
             self.checkTimer.stop()
             
@@ -69,20 +86,31 @@ class Window(QWidget):
             movie.start()
 
     def run(self):
-        x_start = self.x()
-        y_start= self.y()
-        x_end = random.randint(100,800)
-        y_end = random.randint(100,800)
-        self.animation.setStartValue(QPoint(x_start,y_start))
-        self.animation.setEndValue(QPoint(x_end,y_end))
-        self.animation.setLoopCount(1)
-        self.animation.start()
-        if (x_end-x_start<0):
-            self.label.setMovie(self.bunny_run_flipped)
-            self.bunny_run_flipped.start()
+        if self.state == (Bunny.SLEEPING, Bunny.LIE_DOWN):
+            return
+        isIdle = random.randint(0,1)
+        if (isIdle == 1):
+            self.state = Bunny.IDLE
+            self.animation.stop()
+            self.label.setMovie(self.bunny_idle)
+            self.bunny_idle.start()
+            self.idleTimer.start(random.randint(2000,4000))
         else:
-            self.label.setMovie(self.bunny_run)
-            self.bunny_run.start()
+            self.state = Bunny.RUNNING
+            x_start = self.x()
+            y_start= self.y()
+            x_end = random.randint(100,800)
+            y_end = random.randint(100,800)
+            self.animation.setStartValue(QPoint(x_start,y_start))
+            self.animation.setEndValue(QPoint(x_end,y_end))
+            self.animation.setLoopCount(1)
+            self.animation.start()
+            if (x_end-x_start<0):
+                self.label.setMovie(self.bunny_run_flipped)
+                self.bunny_run_flipped.start()
+            else:
+                self.label.setMovie(self.bunny_run)
+                self.bunny_run.start()
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
