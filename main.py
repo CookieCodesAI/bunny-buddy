@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QLabel, QWidget,QVBoxLayout
+from PySide6.QtWidgets import QApplication, QLabel, QWidget,QVBoxLayout, QPushButton
 from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, QPropertyAnimation, QPoint, QElapsedTimer, QTimer
 import sys
@@ -11,7 +11,9 @@ class Bunny():
     LIE_DOWN = 3
     SLEEPING = 4
     HOVER = 5
-class Window(QWidget):
+    SITTING = 6
+    SLEEP_CLICK = 7
+class BunnyWindow(QWidget):
     def __init__(self):
         super().__init__()
 
@@ -31,7 +33,7 @@ class Window(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setFixedSize(QSize(90,80))
+        self.setFixedSize(QSize(100,90))
         self.setMouseTracking(True)
 
         layout = QVBoxLayout(self)
@@ -58,27 +60,55 @@ class Window(QWidget):
         self.run()
 
     def enterEvent(self, event):
+        if self.state == Bunny.SITTING or  self.state == Bunny.SLEEP_CLICK:
+            return
         self.state = Bunny.LIE_DOWN
         self.hoverTime.start()
         self.hovering = True
         self.show_bunny(self.bunny_liedown)
         self.animation.stop()
         self.checkTimer.start()
+            
         
     def leaveEvent(self, event):
+        if self.state == Bunny.SITTING or  self.state == Bunny.SLEEP_CLICK:
+            return
         self.state = Bunny.RUNNING
         self.hovering = False
         self.checkTimer.stop()
         self.run()
 
     def checkSleeping(self):
+        if self.state == Bunny.SITTING or self.state == Bunny.SLEEP_CLICK:
+            return
         if not self.hovering:
             return
         if self.hoverTime.elapsed() > 5000:
             self.state = Bunny.SLEEPING
             self.show_bunny(self.bunny_sleep)
             self.checkTimer.stop()
-            
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if self.state == Bunny.SLEEPING:
+                self.state = Bunny.SLEEP_CLICK
+                self.animation.stop()
+                self.show_bunny(self.bunny_sleep)
+                self.bunny_sleep.start()
+            elif self.state == Bunny.SLEEP_CLICK:
+                self.state = Bunny.LIE_DOWN
+                self.animation.stop()
+                self.show_bunny(self.bunny_liedown)
+                self.bunny_sleep.start()
+            elif self.state == Bunny.SITTING:
+                self.state = Bunny.RUNNING
+                self.run()
+            else:
+                self.state = Bunny.SITTING
+                self.animation.stop()
+                self.show_bunny(self.bunny_sit)
+                self.bunny_sit.start()
+            event.accept()
 
     def show_bunny(self,movie):
         if self.label.movie() != movie:
@@ -86,7 +116,7 @@ class Window(QWidget):
             movie.start()
 
     def run(self):
-        if self.state == (Bunny.SLEEPING, Bunny.LIE_DOWN):
+        if self.state == Bunny.SLEEPING or self.state == Bunny.LIE_DOWN or self.state == Bunny.SITTING or self.state == Bunny.SLEEP_CLICK:
             return
         isIdle = random.randint(0,1)
         if (isIdle == 1):
@@ -111,9 +141,9 @@ class Window(QWidget):
             else:
                 self.label.setMovie(self.bunny_run)
                 self.bunny_run.start()
-        
+                
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = Window()
-    window.show()
+    main_window = BunnyWindow()
+    main_window.show()
     app.exec()
